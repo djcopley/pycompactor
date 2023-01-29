@@ -24,8 +24,7 @@ jobs:
         run: |
           pip3 install --upgrade setuptools wheel twine
           python3 setup.py sdist bdist_wheel --universal
-          mv dist/python_minifier-*.tar.gz dist/python_minifier.tar.gz
-          mv dist/python_minifier-*.whl dist/python_minifier.whl
+          mv dist/python_minifier*.tar.gz dist/windows_python_minifier.tar.gz
 
       - uses: actions/upload-artifact@v3
         with:
@@ -47,7 +46,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip3 install dist/python_minifier.tar.gz
+          pip3 install dist/python_minifier-*.tar.gz
           pyminify --version
 
       - name: Checkout
@@ -76,7 +75,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip${{ matrix.python }} install dist/python_minifier${{ matrix.package_type }}
+          pip${{ matrix.python }} install dist/python_minifier-*${{ matrix.package_type }}
           pyminify --version
 
       - name: Checkout
@@ -97,7 +96,6 @@ jobs:
     strategy:
       matrix:
         python: ["2.7", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-        package_type: [.tar.gz, .whl]
     steps:
       - uses: actions/setup-python@v4
         with:
@@ -112,7 +110,7 @@ jobs:
         shell: cmd
         run: |
           dir dist
-          pip install dist\python_minifier.${{ matrix.package_type }}
+          pip install dist\windows_python_minifier.tar.gz
           pyminify --version
 
       - name: Checkout
@@ -140,7 +138,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip3.11 install dist/python_minifier${{ matrix.package_type }}
+          pip3.11 install dist/python_minifier-*${{ matrix.package_type }}
 
       - name: Checkout
         uses: actions/checkout@v3
