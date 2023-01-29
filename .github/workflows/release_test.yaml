@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: danielflook/python-minifier-build:python3.11-2022-10-25
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -16,15 +18,17 @@ jobs:
           fetch-depth: 0
 
       - name: Set version statically
+        id: set-version
         run: |
           VERSION="$(python3 setup.py --version)"
           sed -i "s/setup_requires=.*/version='$VERSION',/; s/use_scm_version=.*//" setup.py
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create Packages
         run: |
           pip3 install --upgrade setuptools wheel twine
           python3 setup.py sdist bdist_wheel --universal
-          cp dist/python_minifier*.tar.gz dist/windows_python_minifier.tar.gz
 
       - uses: actions/upload-artifact@v3
         with:
@@ -46,7 +50,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip3 install dist/python_minifier-*.tar.gz
+          pip3 install dist/python_minifier-${{ needs.package.outputs.version }}.tar.gz
           pyminify --version
 
       - name: Checkout
@@ -65,6 +69,7 @@ jobs:
       matrix:
         python: ["2.7", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
         package_type: [.tar.gz, .whl]
+      fail-fast: false
     container:
       image: danielflook/python-minifier-build:python${{ matrix.python }}-2022-10-25
     steps:
@@ -75,7 +80,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip${{ matrix.python }} install dist/python_minifier-*${{ matrix.package_type }}
+          pip${{ matrix.python }} install dist/python_minifier-${{ needs.package.outputs.version }}${{ matrix.package_type }}
           pyminify --version
 
       - name: Checkout
@@ -99,6 +104,8 @@ jobs:
     strategy:
       matrix:
         python: ["2.7", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+        package_type: [.tar.gz, .whl]
+      fail-fast: false
     steps:
       - uses: actions/setup-python@v4
         with:
@@ -113,7 +120,7 @@ jobs:
         shell: cmd
         run: |
           dir dist
-          pip install dist\windows_python_minifier.tar.gz
+          pip install dist\python_minifier-${{ needs.package.outputs.version }}${{ matrix.package_type }}
           pyminify --version
 
       - name: Checkout
@@ -134,6 +141,7 @@ jobs:
     strategy:
       matrix:
         package_type: [.tar.gz, .whl]
+      fail-fast: false
     container:
       image: danielflook/python-minifier-build:python3.11-2022-10-25
     steps:
@@ -144,7 +152,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip3.11 install dist/python_minifier-*${{ matrix.package_type }}
+          pip3.11 install dist/python_minifier-${{ needs.package.outputs.version }}${{ matrix.package_type }}
 
       - name: Checkout
         uses: actions/checkout@v3
