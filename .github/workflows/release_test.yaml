@@ -24,7 +24,7 @@ jobs:
         run: |
           pip3 install --upgrade setuptools wheel twine
           python3 setup.py sdist bdist_wheel --universal
-          mv dist/python_minifier*.tar.gz dist/windows_python_minifier.tar.gz
+          cp dist/python_minifier*.tar.gz dist/windows_python_minifier.tar.gz
 
       - uses: actions/upload-artifact@v3
         with:
@@ -118,8 +118,8 @@ jobs:
 
       - name: Test pyminify
         run: |
-          pyminify setup.py > /tmp/out.min.py
-          pyminify setup.py --output /tmp/out.min.py2
+          pyminify setup.py
+          pyminify setup.py --output out.min.py
           pyminify setup.py src test --in-place
 
   test_typing:
