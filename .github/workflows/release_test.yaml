@@ -88,6 +88,9 @@ jobs:
           pyminify setup.py > /tmp/out.min.py
           pyminify setup.py --output /tmp/out.min.py2
           pyminify setup.py src test --in-place
+          pyminify test/test_utf8.py
+          pyminify test/test_utf8.py --in-place
+          pyminify test/test_utf8.py --output out.min.py          
 
   test_windows_package:
     name: Test Package (windows)
@@ -114,13 +117,16 @@ jobs:
           pyminify --version
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Test pyminify
         run: |
           pyminify setup.py
           pyminify setup.py --output out.min.py
           pyminify setup.py src test --in-place
+          pyminify test/test_utf8.py
+          pyminify test/test_utf8.py --in-place
+          pyminify test/test_utf8.py --output out.min.py
 
   test_typing:
     runs-on: ubuntu-latest
