@@ -11,6 +11,8 @@ jobs:
       image: danielflook/python-minifier-build:python3.11-2022-10-25
     outputs:
       version: ${{ steps.set-version.outputs.version }}
+      wheel: ${{ steps.create-packages.outputs.wheel }}
+      sdist: ${{ steps.create-packages.outputs.sdist }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -26,9 +28,13 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create Packages
+        id: create-packages
         run: |
           pip3 install --upgrade setuptools wheel twine
           python3 setup.py sdist bdist_wheel --universal
+          
+          echo "wheel=$(echo dist/*.whl)" >> $GITHUB_OUTPUT
+          echo "sdist=$(echo dist/*.tar.gz)" >> $GITHUB_OUTPUT          
 
       - uses: actions/upload-artifact@v3
         with:
@@ -50,7 +56,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip3 install dist/python_minifier-${{ needs.package.outputs.version }}.tar.gz
+          pip3 install ${{ needs.package.outputs.sdist }}
           pyminify --version
 
       - name: Checkout
@@ -80,7 +86,12 @@ jobs:
 
       - name: Install package
         run: |
-          pip${{ matrix.python }} install dist/python_minifier-${{ needs.package.outputs.version }}${{ matrix.package_type }}
+          if [[ ${{ matrix.package_type }} == ".tar.gz" ]]; then
+            pip${{ matrix.python }} install ${{ needs.package.outputs.sdist }}
+          else
+            pip${{ matrix.python }} install ${{ needs.package.outputs.wheel }}
+          fi
+          
           pyminify --version
 
       - name: Checkout
@@ -104,7 +115,7 @@ jobs:
     strategy:
       matrix:
         python: ["2.7", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-        package_type: [.tar.gz, .whl]
+        package_type: [.tar.gz]
       fail-fast: false
     steps:
       - uses: actions/setup-python@v4
@@ -120,7 +131,7 @@ jobs:
         shell: cmd
         run: |
           dir dist
-          pip install dist\python_minifier-${{ needs.package.outputs.version }}${{ matrix.package_type }}
+          pip install ${{ needs.package.outputs.sdist }}
           pyminify --version
 
       - name: Checkout
@@ -152,7 +163,11 @@ jobs:
 
       - name: Install package
         run: |
-          pip3.11 install dist/python_minifier-${{ needs.package.outputs.version }}${{ matrix.package_type }}
+          if [[ ${{ matrix.package_type }} == ".tar.gz" ]]; then
+            pip3.11 install ${{ needs.package.outputs.sdist }}
+          else
+            pip3.11 install ${{ needs.package.outputs.wheel }}
+          fi
 
       - name: Checkout
         uses: actions/checkout@v3
