@@ -1,6 +1,7 @@
 import python_minifier.ast_compat as ast
 
 from python_minifier.rename.binding import Binding
+from python_minifier.rename.namespace import FunctionNamespace, ModuleNamespace
 from python_minifier.rename.util import insert
 from python_minifier.transforms.suite_transformer import NodeVisitor
 from python_minifier.util import is_ast_node
@@ -38,8 +39,8 @@ class HoistedBinding(Binding):
     def __hash__(self):
         return hash(repr(self.value))
 
-    def set_local_namespace(self, node):
-        self._local_namespace = node
+    def set_local_namespace(self, namespace):
+        self._local_namespace = namespace
 
     @property
     def value(self):
@@ -69,9 +70,9 @@ class HoistedBinding(Binding):
         for node in self.references:
             replace(node, ast.Name(id=new_name, ctx=ast.Load()))
 
-        self._local_namespace.body = list(
+        self._local_namespace.node.body = list(
             insert(
-                self._local_namespace.body,
+                self._local_namespace.node.body,
                 ast.Assign(targets=[ast.Name(id=new_name, ctx=ast.Store())], value=self._value_node),
             )
         )
@@ -101,6 +102,12 @@ class HoistedValue(object):
     def __hash__(self):
         return hash(str(type(self._value)) + str(hash(self._value)))
 
+    def __repr__(self):
+        return repr(self._value)
+
+    def __str__(self):
+        return str(self._value)
+
     def __eq__(self, other):
         return type(self._value) == type(other._value) and self._value == other._value
 
@@ -110,7 +117,7 @@ class HoistedValue(object):
 
 class HoistLiterals(NodeVisitor):
     """
-    Hoist literal strings to module level variables
+    Hoist literal strings to variables
     """
 
     def __call__(self, module):
@@ -119,9 +126,9 @@ class HoistLiterals(NodeVisitor):
         self.visit(module)
         self.place_bindings()
 
-    def nearest_function_namespace(self, node):
+    def nearest_function_namespace(self, namespace):
         """
-        Return the namespace node for the nearest function scope.
+        Return the namespace for the nearest function scope.
 
         This could be itself.
 
@@ -131,40 +138,40 @@ class HoistLiterals(NodeVisitor):
 
         """
 
-        if is_ast_node(node.namespace, (ast.FunctionDef, ast.Module, 'AsyncFunctionDef')):
-            return node.namespace
-        return self.nearest_function_namespace(node.namespace)
+        if is_ast_node(namespace.node, (ast.FunctionDef, ast.Module, 'AsyncFunctionDef')):
+            return namespace
+        return self.nearest_function_namespace(namespace.parent_namespace)
 
-    def namespace_path(self, node):
+    def namespace_path(self, namespace):
         """
-        Return the path of function namespace nodes from the module node down to the input node
+        Return the path of function namespace nodes from the module namespace down to the input namespace
 
         With the source module:
         >>> def a():
         ...   def b():
-        ...     c
+        ...     pass
 
-        >>> namespace_path(c)
-        [a, b, c]
+        >>> namespace_path(FunctionNamespace('b'))
+        [ModuleNamespace(), FunctionNamespace('a'), FunctionNamespace('b')]
 
-        :param node:
-        :type node: ast.Node
-        :rtype: list[ast.AST]
+        :param namespace: The leaf namespace to get the path of
+        :type namespace: :class:`Namespace`
+        :rtype: list[Namespace]
 
         """
 
-        l = []
+        path = []
 
         while True:
-            namespace = self.nearest_function_namespace(node)
-            l.insert(0, namespace)
+            nearest_namespace = self.nearest_function_namespace(namespace)
+            path.insert(0, nearest_namespace)
 
-            if isinstance(namespace, ast.Module):
+            if isinstance(nearest_namespace, ModuleNamespace):
                 break
 
-            node = namespace
+            namespace = nearest_namespace.parent_namespace
 
-        return l
+        return path
 
     def common_path(self, n1_path, n2_path):
 
@@ -176,15 +183,22 @@ class HoistLiterals(NodeVisitor):
         return path
 
     def place_bindings(self):
+        """
+        Place the hoisted bindings in the correct namespaces
+
+        The correct namespace is the closest function namespace that all references are in,
+        which could end up being the module namespace.
+        """
+
         for binding in self._hoisted.values():
 
             namespace_path = []
 
             for node in binding.references:
                 if not namespace_path:
-                    namespace_path = self.namespace_path(node)
+                    namespace_path = self.namespace_path(node.namespace)
                 else:
-                    namespace_path = self.common_path(namespace_path, self.namespace_path(node))
+                    namespace_path = self.common_path(namespace_path, self.namespace_path(node.namespace))
 
             namespace_path[-1].bindings.append(binding)
             binding.set_local_namespace(namespace_path[-1])

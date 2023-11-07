@@ -1,5 +1,5 @@
 """
-Test for renaming of local names
+Test for rename of local names
 
 This assumes the standard NameAssigner and name_generator
 """
@@ -9,23 +9,28 @@ import sys
 
 import pytest
 
-from python_minifier import add_namespace, bind_names, resolve_names, allow_rename_locals, allow_rename_globals, \
-    compare_ast, rename, CompareError, unparse
+from python_minifier import unparse
+from python_minifier.ast_compare import compare_ast, CompareError
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.bind_names import bind_names
+from python_minifier.rename.create_namespaces import create_all_namespaces
+from python_minifier.rename.renamer import rename
+from python_minifier.rename.resolve_names import resolve_names
+from python_minifier.rename.util import apply_local_rename_options, apply_global_rename_options
+
 
 
 def rename_locals(source):
 
     # This will raise if the source file can't be parsed
     module = ast.parse(source, 'test_rename_locals')
-    add_namespace(module)
+    add_parent(module)
+    create_all_namespaces(module)
     bind_names(module)
     resolve_names(module)
-
-    allow_rename_locals(module, True)
-    allow_rename_globals(module, False)
-
+    apply_local_rename_options(module.namespace, True, [])
+    apply_global_rename_options(module.namespace, False, [])
     rename(module)
-
     return module
 
 def assert_code(expected_ast, actual_ast):

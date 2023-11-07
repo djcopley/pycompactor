@@ -276,3 +276,17 @@ class ClassC[V]:
     expected_ast = ast.parse(source)
     unparse(expected_ast)
 
+def test_function_typeparam_rename():
+    if sys.version_info < (3, 12):
+        pytest.skip('Generic syntax python < 3.12')
+
+    source = '''
+class ClassA[MyType: str]:
+    def method1(self) -> MyType:
+        pass
+
+'''
+
+    expected_ast = ast.parse(source)
+    actual_ast = unparse(expected_ast)
+    compare_ast(expected_ast, ast.parse(actual_ast))

@@ -2,32 +2,39 @@ import python_minifier.ast_compat as ast
 
 from python_minifier.rename.binding import NameBinding
 from python_minifier.rename.util import arg_rename_in_place, get_global_namespace, get_nonlocal_namespace, builtins
+from python_minifier.rename.namespace import Namespace, ModuleNamespace, ClassNamespace
 from python_minifier.transforms.suite_transformer import NodeVisitor
-
 
 class NameBinder(NodeVisitor):
     """
     Create a NameBinding for each name that is bound
 
-    The NameBinding is added to the bindings dictionary in the namespace node the name is local to.
+    The NameBinding is added to the bindings dictionary in the namespace the name is local to.
     """
 
     def __call__(self, module):
         assert isinstance(module, ast.Module)
-        module.tainted = False
         return self.visit(module)
 
     def get_binding(self, name, namespace):
-        if name in namespace.global_names and not isinstance(namespace, ast.Module):
+        """
+        Get the NameBinding for a name in a namespace
+
+        If a NameBinding does not exist for the name, it is created in the correct namespace.
+
+        :param name: The name to get the binding for
+        :type name: str
+        :param namespace: The namespace to get the binding in
+        :type namespace: :class:`Namespace`
+        :rtype: :class:`NameBinding`
+        """
+        assert isinstance(namespace, Namespace)
+
+        if name in namespace.global_names and not isinstance(namespace, ModuleNamespace):
             return self.get_binding(name, get_global_namespace(namespace))
 
         # nonlocal names should not create a binding in any context
         assert name not in namespace.nonlocal_names
-
-        if isinstance(namespace, ast.ClassDef):
-            binding = self.get_binding(name, get_nonlocal_namespace(namespace))
-            binding.disallow_rename()
-            return binding
 
         for binding in namespace.bindings:
             if binding.name == name:
@@ -39,8 +46,12 @@ class NameBinder(NodeVisitor):
             if name in dir(builtins):
                 binding.disallow_rename()
 
-        if name in namespace.nonlocal_names and isinstance(namespace, ast.Module):
+        if name in namespace.nonlocal_names and isinstance(namespace, ModuleNamespace):
             # This is actually a syntax error - but we want the same syntax error after minifying!
+            binding.disallow_rename()
+
+        if isinstance(namespace, ClassNamespace):
+            # This name will become an attribute of the class, so it can't be renamed
             binding.disallow_rename()
 
         return binding
@@ -62,7 +73,7 @@ class NameBinder(NodeVisitor):
             else:
                 binding.add_reference(node, reserved=node.id)
 
-                if isinstance(node.namespace, ast.Lambda):
+                if isinstance(node.namespace.node, ast.Lambda):
                     # Lambda function arguments can't be renamed without breaking keyword arguments
                     binding.disallow_rename()
 
@@ -122,7 +133,7 @@ class NameBinder(NodeVisitor):
         else:
             binding.add_reference(node, reserved=node.arg)
 
-            if isinstance(node.namespace, ast.Lambda):
+            if isinstance(node.namespace.node, ast.Lambda):
                 # Lambda function arguments can't be renamed without breaking keyword arguments
                 binding.disallow_rename()
 
@@ -161,6 +172,15 @@ class NameBinder(NodeVisitor):
             self.get_binding(node.rest, node.namespace).add_reference(node)
 
         self.generic_visit(node)
+
+    def visit_TypeVar(self, node):
+        self.get_binding(node.name, node.namespace).add_reference(node)
+
+    def visit_TypeVarTuple(self, node):
+        self.get_binding(node.name, node.namespace).add_reference(node)
+
+    def visit_ParamSpec(self, node):
+        self.get_binding(node.name, node.namespace).add_reference(node)
 
 def bind_names(module):
     """

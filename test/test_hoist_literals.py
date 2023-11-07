@@ -5,15 +5,23 @@ import pytest
 
 from python_minifier import unparse
 from python_minifier.ast_compare import compare_ast
-from python_minifier.rename import add_namespace, bind_names, resolve_names, rename, rename_literals, allow_rename_locals, allow_rename_globals
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.bind_names import bind_names
+from python_minifier.rename.create_namespaces import create_all_namespaces
+from python_minifier.rename.rename_literals import rename_literals
+from python_minifier.rename.renamer import rename
+from python_minifier.rename.resolve_names import resolve_names
+from python_minifier.rename.util import apply_local_rename_options, apply_global_rename_options
+
 
 def hoist(source):
     module = ast.parse(source)
-    add_namespace(module)
+    add_parent(module)
+    create_all_namespaces(module)
     bind_names(module)
     resolve_names(module)
-    allow_rename_locals(module, False)
-    allow_rename_globals(module, False)
+    apply_local_rename_options(module.namespace, False, [])
+    apply_global_rename_options(module.namespace, False, [])
     rename_literals(module)
     rename(module)
     print(unparse(module))

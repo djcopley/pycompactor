@@ -3,14 +3,16 @@ import sys
 
 import pytest
 
-from python_minifier import add_namespace
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
 from python_minifier.transforms.constant_folding import FoldConstants
 from python_minifier.ast_compare import compare_ast
 
 
 def fold_constants(source):
     module = ast.parse(source)
-    add_namespace(module)
+    add_parent(module)
+    create_all_namespaces(module)
     FoldConstants()(module)
     return module
 

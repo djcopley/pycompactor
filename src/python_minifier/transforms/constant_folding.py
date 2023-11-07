@@ -91,7 +91,7 @@ class FoldConstants(SuiteTransformer):
             return node
 
         # New representation is shorter and has the same value, so use it
-        return self.add_child(new_node, node.parent, node.namespace)
+        return self.add_child(new_node, node.parent)
 
 def equal_value_and_type(a, b):
     if type(a) != type(b):

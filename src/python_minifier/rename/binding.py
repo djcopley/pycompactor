@@ -11,7 +11,6 @@ class Binding(object):
     :param name: A name for this binding
     :type name: str or None
     :param bool allow_rename: If this binding may be renamed
-    :param int rename_cost: The cost of renaming this binding in bytes, NOT including the difference in name lengths
 
     """
 
@@ -131,6 +130,12 @@ class Binding(object):
                 pass
             elif is_ast_node(node, 'MatchMapping'):
                 pass
+            elif is_ast_node(node, 'TypeVar'):
+                pass
+            elif is_ast_node(node, 'TypeVarTuple'):
+                pass
+            elif is_ast_node(node, 'ParamSpec'):
+                pass
 
             else:
                 raise AssertionError('Unknown reference node')
@@ -178,6 +183,12 @@ class Binding(object):
                 pass
             elif is_ast_node(node, 'MatchMapping'):
                 pass
+            elif is_ast_node(node, 'TypeVar'):
+                pass
+            elif is_ast_node(node, 'TypeVarTuple'):
+                pass
+            elif is_ast_node(node, 'ParamSpec'):
+                pass
 
             else:
                 raise AssertionError('Unknown reference node')
@@ -221,6 +232,12 @@ class Binding(object):
                 mentions += 1
             elif is_ast_node(node, 'MatchMapping'):
                 mentions += 1
+            elif is_ast_node(node, 'TypeVar'):
+                mentions += 1
+            elif is_ast_node(node, 'TypeVarTuple'):
+                mentions += 1
+            elif is_ast_node(node, 'ParamSpec'):
+                mentions += 1
 
             else:
                 raise AssertionError('Unknown reference node')
@@ -235,7 +252,6 @@ class Binding(object):
         :type node: :class:`ast.AST`
         :param bool allow_rename: If this binding may be renamed
         :param str reserved: A name used by the node, even if the binding is renamed.
-        :param int rename_cost: Additional cost of renaming the reference, in bytes
 
         """
 
@@ -289,7 +305,7 @@ class NameBinding(Binding):
             self.disallow_rename()
 
     def __repr__(self):
-        return self.__class__.__name__ + '(name=%r) <references=%r>' % (self._name, len(self._references))
+        return self.__class__.__name__ + '(name=%r)' % self._name
 
     def should_rename(self, new_name):
         """
@@ -325,7 +341,8 @@ class NameBinding(Binding):
 
         """
 
-        func_namespace_binding = None
+        # A function namespace that needs the name rebinding to the new name in the body
+        func_namespace_rebinding = None
 
         for node in self.references:
 
@@ -340,10 +357,10 @@ class NameBinding(Binding):
                         node.id = new_name
 
                     else:
-                        if func_namespace_binding is None:
-                            func_namespace_binding = node.namespace
+                        if func_namespace_rebinding is None:
+                            func_namespace_rebinding = node.namespace
                         else:
-                            assert func_namespace_binding is node.namespace
+                            assert func_namespace_rebinding is node.namespace
 
             elif is_ast_node(node, (ast.FunctionDef, 'AsyncFunctionDef')):
                 node.name = new_name
@@ -360,10 +377,10 @@ class NameBinding(Binding):
                     node.arg = new_name
 
                 else:
-                    if func_namespace_binding is None:
-                        func_namespace_binding = node.namespace
+                    if func_namespace_rebinding is None:
+                        func_namespace_rebinding = node.namespace
                     else:
-                        assert func_namespace_binding is node.namespace
+                        assert func_namespace_rebinding is node.namespace
 
             elif isinstance(node, ast.ExceptHandler):
                 node.name = new_name
@@ -387,11 +404,18 @@ class NameBinding(Binding):
                 node.name = new_name
             elif is_ast_node(node, 'MatchMapping'):
                 node.rest = new_name
+            elif is_ast_node(node, 'TypeVar'):
+                node.name = new_name
+            elif is_ast_node(node, 'TypeVarTuple'):
+                node.name = new_name
+            elif is_ast_node(node, 'ParamSpec'):
+                node.name = new_name
 
-        if func_namespace_binding is not None:
-            func_namespace_binding.body = list(
+        if func_namespace_rebinding is not None:
+            assert is_ast_node(func_namespace_rebinding.node, (ast.FunctionDef, 'AsyncFunctionDef'))
+            func_namespace_rebinding.node.body = list(
                 insert(
-                    func_namespace_binding.body,
+                    func_namespace_rebinding.node.body,
                     ast.Assign(
                         targets=[ast.Name(id=new_name, ctx=ast.Store())],
                         value=ast.Name(id=self._name, ctx=ast.Load()),
@@ -440,9 +464,9 @@ class BuiltinBinding(NameBinding):
     def rename(self, new_name):
         builtin = self._name
         super(BuiltinBinding, self).rename(new_name)
-        self.namespace.body = list(
+        self.namespace.node.body = list(
             insert(
-                self.namespace.body,
+                self.namespace.node.body,
                 ast.Assign(
                     targets=[ast.Name(id=new_name, ctx=ast.Store())], value=ast.Name(id=builtin, ctx=ast.Load())
                 ),

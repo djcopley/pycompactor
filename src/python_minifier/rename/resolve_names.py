@@ -1,21 +1,37 @@
 import python_minifier.ast_compat as ast
 
 from python_minifier.rename.binding import BuiltinBinding, NameBinding
+from python_minifier.rename.namespace import ModuleNamespace
 from python_minifier.rename.util import get_global_namespace, get_nonlocal_namespace, builtins
 from python_minifier.util import is_ast_node
 
 
 def get_binding(name, namespace):
-    if name in namespace.global_names and not isinstance(namespace, ast.Module):
+    """
+    Get the NameBinding for a name in a namespace
+
+    If the name is a builtin, a BuiltinBinding is created in the global namespace.
+    If a NameBinding does not exist for the name it is created in the global namespace, but is probably a bug in the input source.
+
+    :param name: The name to get the binding for
+    :type name: str
+    :param namespace: The namespace to get the binding in
+    :type namespace: :class:`Namespace`
+    """
+
+    if name in namespace.global_names and not isinstance(namespace, ModuleNamespace):
         return get_binding(name, get_global_namespace(namespace))
-    elif name in namespace.nonlocal_names and not isinstance(namespace, ast.Module):
+    elif name in namespace.nonlocal_names and not isinstance(namespace, ModuleNamespace):
         return get_binding(name, get_nonlocal_namespace(namespace))
 
+    # Check if the name is bound in the local namespace
     for binding in namespace.bindings:
         if binding.name == name:
             return binding
 
-    if not isinstance(namespace, ast.Module):
+    # The name is not bound in the local namespace, check the parent namespace
+
+    if not isinstance(namespace, ModuleNamespace):
         return get_binding(name, get_nonlocal_namespace(namespace))
 
     else:
@@ -29,6 +45,8 @@ def get_binding(name, namespace):
             return binding
 
         else:
+            # Could not resolve the name, the input source is probably invalid
+            # Create a binding in the global namespace, but disallow renaming to preserve the error
             binding = NameBinding(name)
             binding.disallow_rename()
             namespace.bindings.append(binding)

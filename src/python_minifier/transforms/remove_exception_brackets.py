@@ -109,7 +109,7 @@ def remove_no_arg_exception_call(module):
     if sys.version_info < (3, 0):
         return module
 
-    for binding in module.bindings:
+    for binding in module.namespace.bindings:
         if isinstance(binding, BuiltinBinding) and binding.name in builtin_exceptions:
             # We can remove any calls to builtin exceptions
             _remove_empty_call(binding)

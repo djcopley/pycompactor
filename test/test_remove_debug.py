@@ -2,17 +2,16 @@ import ast
 
 import pytest
 
-from python_minifier import add_namespace, bind_names, resolve_names
 from python_minifier.ast_compare import compare_ast
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
 from python_minifier.transforms.remove_debug import RemoveDebug
 
 
 def remove_debug(source):
     module = ast.parse(source, 'remove_debug')
-
-    add_namespace(module)
-    bind_names(module)
-    resolve_names(module)
+    add_parent(module)
+    create_all_namespaces(module)
     return RemoveDebug()(module)
 
 

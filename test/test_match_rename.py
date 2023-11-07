@@ -3,25 +3,28 @@ import sys
 
 import pytest
 
-from python_minifier import (
-    add_namespace, bind_names, resolve_names, allow_rename_locals, allow_rename_globals,
-    compare_ast, rename as do_rename, CompareError, unparse, rename_literals
-)
+from python_minifier import unparse
+from python_minifier.ast_compare import compare_ast, CompareError
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.bind_names import bind_names
+from python_minifier.rename.create_namespaces import create_all_namespaces
+from python_minifier.rename.rename_literals import rename_literals
+from python_minifier.rename.renamer import rename
+from python_minifier.rename.resolve_names import resolve_names
+from python_minifier.rename.util import apply_local_rename_options, apply_global_rename_options
 
 
-def rename(source, locals, globals):
+def do_rename(source, locals, globals):
     # This will raise if the source file can't be parsed
     module = ast.parse(source, 'test_match_rename')
-    add_namespace(module)
+    add_parent(module)
+    create_all_namespaces(module)
     bind_names(module)
     resolve_names(module)
-
-    allow_rename_locals(module, locals)
-    allow_rename_globals(module, globals)
-
+    apply_local_rename_options(module.namespace, locals, [])
+    apply_global_rename_options(module.namespace, globals, [])
     rename_literals(module)
-    do_rename(module)
-
+    rename(module)
     return module
 
 
@@ -63,7 +66,7 @@ match B + B:
 '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=False, globals=True)
+    actual_ast = do_rename(source, locals=False, globals=True)
     assert_code(expected_ast, actual_ast)
 
 
@@ -102,7 +105,7 @@ def func(expensive_rename):
 '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=True, globals=False)
+    actual_ast = do_rename(source, locals=True, globals=False)
     assert_code(expected_ast, actual_ast)
 
 
@@ -135,7 +138,7 @@ def func(expensive_rename):
     '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=True, globals=False)
+    actual_ast = do_rename(source, locals=True, globals=False)
     assert_code(expected_ast, actual_ast)
 
 
@@ -173,7 +176,7 @@ def C(expensive_rename):
         '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=False, globals=True)
+    actual_ast = do_rename(source, locals=False, globals=True)
     assert_code(expected_ast, actual_ast)
 
 
@@ -206,7 +209,7 @@ def func(expensive_rename):
         '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=True, globals=False)
+    actual_ast = do_rename(source, locals=True, globals=False)
     assert_code(expected_ast, actual_ast)
 
 
@@ -239,7 +242,7 @@ def B(expensive_rename):
         '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=False, globals=True)
+    actual_ast = do_rename(source, locals=False, globals=True)
     assert_code(expected_ast, actual_ast)
 
 
@@ -296,7 +299,7 @@ def func(expensive_rename):
             '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=True, globals=False)
+    actual_ast = do_rename(source, locals=True, globals=False)
     assert_code(expected_ast, actual_ast)
 
 
@@ -351,5 +354,5 @@ def D(expensive_rename):
                 '''
 
     expected_ast = ast.parse(expected)
-    actual_ast = rename(source, locals=False, globals=True)
+    actual_ast = do_rename(source, locals=False, globals=True)
     assert_code(expected_ast, actual_ast)

@@ -2,29 +2,28 @@ import python_minifier.ast_compat as ast
 
 from python_minifier.rename.binding import NameBinding
 from python_minifier.rename.name_generator import name_filter
-from python_minifier.rename.util import is_namespace
+from python_minifier.rename.namespace import AnnotationNamespace
 
 
-def all_bindings(node):
+def all_bindings(namespace):
     """
-    All bindings in a module
+    All bindings in a namespace and all child namespaces
 
-    :param node: The module to get bindings in
-    :type node: :class:`ast.AST`
-    :rtype: Iterable[ast.AST, Binding]
+    :param namespace: The module to get bindings in
+    :type namespace: :class:`Namespace`
+    :rtype: Iterable[:class:`Namespace, :class:`Binding`]
 
     """
 
-    if is_namespace(node):
-        for binding in node.bindings:
-            yield node, binding
+    for binding in namespace.bindings:
+        yield namespace, binding
 
-    for child in ast.iter_child_nodes(node):
+    for child in namespace.children:
         for namespace, binding in all_bindings(child):
             yield namespace, binding
 
 
-def sorted_bindings(module):
+def sorted_bindings(module_namespace):
     """
     All bindings in a modules sorted by descending number of references
 
@@ -38,7 +37,7 @@ def sorted_bindings(module):
         namespace, binding = tup
         return binding.new_mention_count()
 
-    return sorted(all_bindings(module), key=comp, reverse=True)
+    return sorted(all_bindings(module_namespace), key=comp, reverse=True)
 
 
 def reservation_scope(namespace, binding):
@@ -48,38 +47,39 @@ def reservation_scope(namespace, binding):
     Returns the namespace nodes the binding name must be resolvable in
 
     :param namespace: The local namespace of a binding
-    :type namespace: :class:`ast.AST`
+    :type namespace: :class:`Namespace`
     :param binding: The binding to get the reservation scope for
-    :type binding: Binding
-    :rtype: set[ast.AST]
+    :type binding: :class:`Binding`
+    :rtype: set[:class:`Namespace`]
 
     """
 
-    namespaces = set([namespace])
+    scope = set([namespace])
 
-    for node in binding.references:
-        while node is not namespace:
-            namespaces.add(node.namespace)
-            node = node.namespace
+    if isinstance(namespace, AnnotationNamespace):
+        # Type parameters should not be shadowed by other type parameters
+        # We do this by including all child namespaces in it's reservation scope
+        # This means that type parameters can't be shadowed by ANY bindings in child namespaces, but it's good enough
+        # for now.
 
-    return namespaces
+        def add_children(namespace):
+            scope.add(namespace)
+            for child in namespace.children:
+                add_children(child)
 
+        add_children(namespace)
 
-def add_assigned(node):
-    """
-    Add the assigned_names attribute to namespace nodes in a module
+    else:
+        # For non type parameters, the reservation scope is built by starting at the local namespace for each
+        # reference, and walking back up the namespace tree until we reach the namespace the binding is local to.
 
-    :param node: The module to add the assigned_names attribute to
-    :type node: :class:`ast.Module`
+        for node in binding.references:
+            node_namespace = node.namespace
+            while node_namespace is not namespace:
+                scope.add(node_namespace)
+                node_namespace = node_namespace.parent_namespace
 
-    """
-
-    if is_namespace(node):
-        node.assigned_names = set()
-
-    for child in ast.iter_child_nodes(node):
-        add_assigned(child)
-
+    return scope
 
 def reserve_name(name, reservation_scope):
     """
@@ -87,7 +87,7 @@ def reserve_name(name, reservation_scope):
 
     :param str name: The name to reserve
     :param reservation_scope:
-    :type reservation_scope: Iterable[:class:`ast.AST`]
+    :type reservation_scope: Iterable[:class:`Namespace`]
 
     """
 
@@ -112,7 +112,7 @@ class UniqueNameAssigner(object):
     def __call__(self, module):
         assert isinstance(module, ast.Module)
 
-        for namespace, binding in sorted_bindings(module):
+        for namespace, binding in sorted_bindings(module.namespace):
             if binding.allow_rename:
                 binding.new_name = self.available_name()
 
@@ -148,6 +148,10 @@ class NameAssigner(object):
     def available_name(self, reservation_scope, prefix=''):
         """
         Search for the first name that is not in reservation scope
+
+        :param reservation_scope: The scope to check
+        :type reservation_scope: Iterable[:class:`Namespace`]
+        :param str prefix: The prefix to add to the name
         """
 
         for name in self.iter_names():
@@ -160,7 +164,7 @@ class NameAssigner(object):
 
         :param str name: the name to check availability of
         :param reservation_scope: The scope to check
-        :type reservation_scope: Iterable[:class:`ast.AST`]
+        :type reservation_scope: Iterable[:class:`Namespace`]
         :rtype: bool
 
         """
@@ -172,19 +176,28 @@ class NameAssigner(object):
         return True
 
     def __call__(self, module, prefix_globals, reserved_globals=None):
-        assert isinstance(module, ast.Module)
-        add_assigned(module)
+        """
+        Assign new names to renamed bindings
 
-        for namespace, binding in all_bindings(module):
+        :param module: The module to assign names in
+        :type module: :class:`ast.Module`
+        :param prefix_globals: Should global names be prefixed
+        :type prefix_globals: bool
+        :param reserved_globals: A list of names that should not be assigned to bindings
+        :type reserved_globals: list[str]
+        """
+        assert isinstance(module, ast.Module)
+
+        for namespace, binding in all_bindings(module.namespace):
             if binding.reserved is not None:
                 scope = reservation_scope(namespace, binding)
                 reserve_name(binding.reserved, scope)
 
         if reserved_globals is not None:
             for name in reserved_globals:
-                module.assigned_names.add(name)
+                module.namespace.assigned_names.add(name)
 
-        for namespace, binding in sorted_bindings(module):
+        for namespace, binding in sorted_bindings(module.namespace):
             scope = reservation_scope(namespace, binding)
 
             if binding.allow_rename:

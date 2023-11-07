@@ -1,6 +1,7 @@
 import python_minifier.ast_compat as ast
 import sys
 
+from python_minifier.rename.namespace import ModuleNamespace, ClassNamespace, AnnotationNamespace
 from python_minifier.util import is_ast_node
 
 
@@ -23,31 +24,31 @@ def create_is_namespace():
 is_namespace = create_is_namespace()
 
 
-def get_global_namespace(node):
+def get_global_namespace(namespace):
     """
-    Return the global namespace for a node
+    Return the global namespace for given namespace
 
-    :rtype: :class:`ast.Module`
+    :rtype: :class:`Namespace`
 
     """
 
-    if node.namespace is node:
-        return node
+    if isinstance(namespace, ModuleNamespace):
+        return namespace
 
-    return get_global_namespace(node.namespace)
+    return get_global_namespace(namespace.parent_namespace)
 
 
-def get_nonlocal_namespace(node):
+def get_nonlocal_namespace(namespace):
     """
     Return the nonlocal namespace for a node
 
-    The nonlocal namespace is the closest parent function scope's namespace.
+    The nonlocal namespace is the closest parent function namespace
     """
 
-    if isinstance(node.namespace, ast.ClassDef):
-        return get_nonlocal_namespace(node.namespace)
+    if isinstance(namespace.parent_namespace, ClassNamespace):
+        return get_nonlocal_namespace(namespace.parent_namespace)
 
-    return node.namespace
+    return namespace.parent_namespace
 
 
 def arg_rename_in_place(node):
@@ -70,29 +71,31 @@ def arg_rename_in_place(node):
 
     """
 
-    func = node.namespace
+    func_node = node.namespace.node
 
-    if isinstance(func, ast.comprehension):
+    if isinstance(func_node, ast.comprehension):
         return True
 
-    if isinstance(func.namespace, ast.ClassDef) and not isinstance(func, ast.Lambda):
-        if len(func.args.args) > 0 and node is func.args.args[0]:
-            if len(func.decorator_list) == 0:
+    if isinstance(func_node.namespace, ClassNamespace) and not isinstance(func_node, ast.Lambda):
+        # This is a function in class scope
+
+        if len(func_node.args.args) > 0 and node is func_node.args.args[0]:
+            if len(func_node.decorator_list) == 0:
                 # rename 'self'
                 return True
             elif (
-                len(func.decorator_list) == 1
-                and isinstance(func.decorator_list[0], ast.Name)
-                and func.decorator_list[0].id == 'classmethod'
+                len(func_node.decorator_list) == 1
+                and isinstance(func_node.decorator_list[0], ast.Name)
+                and func_node.decorator_list[0].id == 'classmethod'
             ):
                 # rename 'cls'
                 return True
 
-    if func.args.vararg is node or func.args.kwarg is node:
+    if func_node.args.vararg is node or func_node.args.kwarg is node:
         # starargs
         return True
 
-    if hasattr(func.args, 'posonlyargs') and node in func.args.posonlyargs:
+    if hasattr(func_node.args, 'posonlyargs') and node in func_node.args.posonlyargs:
         return True
 
     return False
@@ -127,23 +130,6 @@ def insert(suite, new_node):
     if not inserted:
         yield new_node
 
-
-def allow_rename_locals(node, rename_locals, preserve_locals=None):
-
-    if preserve_locals is None:
-        preserve_locals = []
-
-    if not isinstance(node, ast.Module) and is_namespace(node):
-        for binding in node.bindings:
-            if rename_locals is False:
-                binding.disallow_rename()
-            elif binding.name in preserve_locals:
-                binding.disallow_rename()
-
-    for child in ast.iter_child_nodes(node):
-        allow_rename_locals(child, rename_locals, preserve_locals)
-
-
 def find__all__(module):
 
     names = []
@@ -173,17 +159,49 @@ def find__all__(module):
 
     return names
 
+def apply_global_rename_options(module_namespace, rename_globals, preserve_globals):
+    """
+    Apply renaming options for the global namespace of a module
 
-def allow_rename_globals(module, rename_globals=False, preserve_globals=None):
+    :param module_namespace: The module namespace to apply options to
+    :type module_namespace: :class:`ModuleNamespace`
+    :param rename_globals: Should global names be renamed
+    :type rename_globals: bool
+    :param preserve_globals: A list of global names to preserve
+    :type preserve_globals: list[str]
+    """
 
     if preserve_globals is None:
         preserve_globals = []
 
-    preserve_globals.extend(find__all__(module))
+    preserve_globals.extend(find__all__(module_namespace.node))
 
-    for binding in module.bindings:
+    for binding in module_namespace.bindings:
         if rename_globals is False or binding.name in preserve_globals:
             binding.disallow_rename()
+
+def apply_local_rename_options(namespace, rename_locals, preserve_locals):
+    """
+    Apply renaming options to non-global namespaces in a module
+
+    :param namespace: The namespace to apply options to
+    :type namespace: :class:`Namespace`
+    :param rename_locals: Should local names be renamed
+    :type rename_locals: bool
+    :param preserve_locals: A list of local names to preserve
+    :type preserve_locals: list[str]
+    """
+
+    if preserve_locals is None:
+        preserve_locals = []
+
+    if not isinstance(namespace, ModuleNamespace):
+        for binding in namespace.bindings:
+            if rename_locals is False or binding.name in preserve_locals:
+                binding.disallow_rename()
+
+    for child_namespace in namespace.children:
+        apply_local_rename_options(child_namespace, rename_locals, preserve_locals)
 
 
 try:

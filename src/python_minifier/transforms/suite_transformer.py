@@ -1,10 +1,18 @@
 import python_minifier.ast_compat as ast
 
-from python_minifier.rename.mapper import add_parent
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_child_namespaces
+from python_minifier.rename.namespace import FunctionNamespace, ModuleNamespace
 from python_minifier.util import is_ast_node
 
 
 class NodeVisitor(object):
+    """
+    A visitor for AST nodes.
+
+    visits all nodes in the tree and calls a visitor method for each node.
+    """
+
     def visit(self, node):
         """Visit a node."""
         method = 'visit_' + node.__class__.__name__
@@ -22,6 +30,16 @@ class NodeVisitor(object):
                 self.visit(value)
 
     def visit_Constant(self, node):
+        """
+        Dispatch to a visit method based on the type of the Constant
+
+        Before Constant was introduced, these values were
+        represented by NameConstant, Num, Str, Bytes, Ellipsis nodes.
+
+        :param node: The node to visit
+        :type node: :class:`ast.Constant`
+        """
+
         if node.value in [None, True, False]:
             method = 'visit_NameConstant'
         elif isinstance(node.value, (int, float, complex)):
@@ -172,25 +190,21 @@ class SuiteTransformer(NodeVisitor):
                     setattr(node, field, new_node)
         return node
 
-    def add_child(self, child, parent, namespace=None):
-        def nearest_function_namespace(node):
-            """
-            Return the namespace node for the nearest function scope.
+    def add_child(self, child, parent):
+        """
+        Add the child tree to the parent tree
 
-            This could be itself.
+        This sets the parent attributes of each node of the child tree.
+        The parent of the root node of the child tree is set to the parent node.
 
-            :param node: The node to get the function namespace of
-            :type node: ast.Node
-            :rtype: ast.Node
+        The namespace tree is also updated to reflect the new child tree.
 
-            """
+        :param child: The child tree to add
+        :type child: :class:`ast.AST`
+        :param parent: The parent tree to add to
+        :type parent: :class:`ast.AST`
+        """
 
-            if is_ast_node(node, (ast.FunctionDef, ast.Module, 'AsyncFunctionDef')):
-                return node
-            return nearest_function_namespace(node.parent)
-
-        if namespace is None:
-            namespace = nearest_function_namespace(parent)
-
-        add_parent(child, parent=parent, namespace=namespace)
+        add_parent(child, parent=parent)
+        create_child_namespaces(child, parent_namespace=parent.namespace)
         return child

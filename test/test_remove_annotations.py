@@ -2,13 +2,17 @@ import ast
 import sys
 import pytest
 
-from python_minifier import add_namespace, RemoveAnnotationsOptions
+from python_minifier import RemoveAnnotationsOptions
+
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
 from python_minifier.transforms.remove_annotations import RemoveAnnotations
 from python_minifier.ast_compare import compare_ast
 
 def remove_annotations(source, **kwargs):
     module = ast.parse(source)
-    add_namespace(module)
+    add_parent(module)
+    create_all_namespaces(module)
     RemoveAnnotations(RemoveAnnotationsOptions(**kwargs))(module)
     return module
 

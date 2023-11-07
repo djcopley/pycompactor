@@ -9,15 +9,16 @@ import re
 
 from python_minifier.ast_compare import CompareError, compare_ast
 from python_minifier.module_printer import ModulePrinter
-from python_minifier.rename import (
-    rename_literals,
-    bind_names,
-    resolve_names,
-    rename,
-    allow_rename_globals,
-    allow_rename_locals,
-    add_namespace,
-)
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
+from python_minifier.rename.bind_names import bind_names
+from python_minifier.rename.rename_literals import rename_literals
+from python_minifier.rename.renamer import rename
+from python_minifier.rename.resolve_names import resolve_names
+
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
+from python_minifier.rename.util import apply_local_rename_options, apply_global_rename_options
 
 from python_minifier.transforms.combine_imports import CombineImports
 from python_minifier.transforms.constant_folding import FoldConstants
@@ -115,7 +116,8 @@ def minify(
     # This will raise if the source file can't be parsed
     module = ast.parse(source, filename)
 
-    add_namespace(module)
+    add_parent(module)
+    create_all_namespaces(module)
 
     if remove_literal_statements:
         module = RemoveLiteralStatements()(module)
@@ -159,15 +161,15 @@ def minify(
     bind_names(module)
     resolve_names(module)
 
-    if remove_builtin_exception_brackets and not module.tainted:
+    if remove_builtin_exception_brackets and not module.namespace.is_tainted:
         remove_no_arg_exception_call(module)
 
-    if module.tainted:
+    if module.namespace.is_tainted:
         rename_globals = False
         rename_locals = False
 
-    allow_rename_locals(module, rename_locals, preserve_locals)
-    allow_rename_globals(module, rename_globals, preserve_globals)
+    apply_local_rename_options(module.namespace, rename_locals, preserve_locals)
+    apply_global_rename_options(module.namespace, rename_globals, preserve_globals)
 
     if hoist_literals:
         rename_literals(module)

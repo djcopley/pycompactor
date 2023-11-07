@@ -3,17 +3,22 @@ import sys
 
 import pytest
 
-from python_minifier.rename import add_namespace, bind_names, resolve_names
 from python_minifier.ast_compare import compare_ast
 from python_minifier.transforms.remove_exception_brackets import remove_no_arg_exception_call
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
+from python_minifier.rename.bind_names import bind_names
+from python_minifier.rename.resolve_names import resolve_names
 
 
 def remove_brackets(source):
     module = ast.parse(source, 'remove_brackets')
 
-    add_namespace(module)
+    add_parent(module)
+    create_all_namespaces(module)
     bind_names(module)
     resolve_names(module)
+
     return remove_no_arg_exception_call(module)
 
 

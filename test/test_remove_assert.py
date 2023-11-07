@@ -1,14 +1,17 @@
 import ast
-from python_minifier import add_namespace, bind_names, resolve_names
+
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
 from python_minifier.transforms.remove_asserts import RemoveAsserts
 from python_minifier.ast_compare import compare_ast
 
 def remove_asserts(source):
     module = ast.parse(source, 'remove_asserts')
 
-    add_namespace(module)
-    bind_names(module)
-    resolve_names(module)
+
+    add_parent(module)
+    create_all_namespaces(module)
+
     return RemoveAsserts()(module)
 
 def test_remove_assert_empty_module():

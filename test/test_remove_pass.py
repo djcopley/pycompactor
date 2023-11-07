@@ -1,14 +1,16 @@
 import ast
-from python_minifier import add_namespace, bind_names, resolve_names
+
+from python_minifier.rename.create_namespaces import create_all_namespaces
 from python_minifier.transforms.remove_pass import RemovePass
 from python_minifier.ast_compare import compare_ast
+from python_minifier.rename.add_parent import add_parent
 
 def remove_literals(source):
     module = ast.parse(source, 'remove_literals')
 
-    add_namespace(module)
-    bind_names(module)
-    resolve_names(module)
+    add_parent(module)
+    create_all_namespaces(module)
+
     return RemovePass()(module)
 
 def test_remove_pass_empty_module():

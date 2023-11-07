@@ -5,11 +5,15 @@ import pytest
 
 from python_minifier import unparse
 from python_minifier.ast_compare import compare_ast
+from python_minifier.rename.add_parent import add_parent
+from python_minifier.rename.create_namespaces import create_all_namespaces
 from python_minifier.transforms.remove_explicit_return_none import RemoveExplicitReturnNone
 
 
 def remove_return_none(source):
     module = ast.parse(source, 'remove_return_none')
+    add_parent(module)
+    create_all_namespaces(module)
 
     return RemoveExplicitReturnNone()(module)
 
