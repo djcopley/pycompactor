@@ -466,6 +466,8 @@ def A():
     assert print_namespace(module_namespace) == print_namespace(expected_namespaces)
 
 def test_function_type_params():
+    if sys.version_info < (3, 12):
+        pytest.skip('Type Parameters not supported in Python < 3.12')
 
     source = '''
 def A[T]():
@@ -495,6 +497,8 @@ def A[T]():
     assert print_namespace(module_namespace) == print_namespace(expected_namespaces)
 
 def test_function_class_type_params():
+    if sys.version_info < (3, 12):
+        pytest.skip('Type Parameters not supported in Python < 3.12')
 
     source = '''
 class Class[T]:

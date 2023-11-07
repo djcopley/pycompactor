@@ -166,6 +166,8 @@ a = {x: 'blah' for x in range(y) for y in range(z) for z in range(10)}
     assert_namespace_tree(module_namespace, expected_namespaces)
 
 def test_typeparam():
+    if sys.version_info < (3, 12):
+        pytest.skip('Type Parameters not supported in Python < 3.12')
 
     source = '''
 @decorator
@@ -225,6 +227,8 @@ a = lambda x, y, *args, **kwargs: x + y
     assert_namespace_tree(module_namespace, expected_namespaces)
 
 def test_async_functiondef():
+    if sys.version_info < (3, 12):
+        pytest.skip('Type Parameters not supported in Python < 3.12')
 
     source = '''
 @decorator
@@ -253,6 +257,8 @@ async def f[T: int, U: (int, str), *V, **P](
     assert_namespace_tree(module_namespace, expected_namespaces)
 
 def test_classdef():
+    if sys.version_info < (3, 12):
+        pytest.skip('Type Parameters not supported in Python < 3.12')
 
     source = '''
 @decorator

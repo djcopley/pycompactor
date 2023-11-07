@@ -58,6 +58,8 @@ def expected(namespace_type, node_type, name='', global_names=None, nonlocal_nam
     return ns
 
 def test_functiondef_binding():
+    if sys.version_info < (3, 12):
+        pytest.skip('Type Parameters not supported in Python < 3.12')
 
     source = '''
 @decorator
@@ -82,6 +84,8 @@ def A[B](C):
     assert_namespace_tree(module_namespace, expected_namespaces)
 
 def test_classdef_binding():
+    if sys.version_info < (3, 12):
+        pytest.skip('Type Parameters not supported in Python < 3.12')
 
     source = '''
 @decorator
