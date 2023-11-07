@@ -61,12 +61,12 @@ def expected(namespace_type, node_type, name='', global_names=None, nonlocal_nam
 
 def binding(name, references):
     b = NameBinding(name)
-    [b.add_reference(ast.Name(name)) for _ in range(references)]
+    [b.add_reference(ast.Name(name, None)) for _ in range(references)]
     return b
 
 def builtin(name, references):
     b = BuiltinBinding(name, ast.Module())
-    [b.add_reference(ast.Name(name)) for _ in range(references)]
+    [b.add_reference(ast.Name(name, None)) for _ in range(references)]
     return b
 
 def test_resolve():
@@ -74,7 +74,7 @@ def test_resolve():
     source = '''
 A = 'hello'
 A = 'helloagain'
-print(A + A)
+range(A + A)
 '''
 
     tree = ast.parse(source)
@@ -87,7 +87,7 @@ print(A + A)
     print(print_namespace(module_namespace))
 
     A = binding('A', references=4)
-    print_ = builtin('print', references=1)
+    print_ = builtin('range', references=1)
     expected_namespaces = expected(ModuleNamespace, ast.Module, bindings=[A, print_])
 
     print(print_namespace(expected_namespaces))
@@ -95,6 +95,9 @@ print(A + A)
     assert print_namespace(module_namespace) == print_namespace(expected_namespaces)
 
 def test_nonlocal():
+
+    if sys.version_info < (3, 0):
+        pytest.skip('Nonlocal not supported in Python 2')
 
     source = '''
 A = 'hello'
@@ -128,6 +131,8 @@ def B():
     assert print_namespace(module_namespace) == print_namespace(expected_namespaces)
 
 def test_nested_nonlocal():
+    if sys.version_info < (3, 0):
+        pytest.skip('Nonlocal not supported in Python 2')
 
     source = '''
 A = 'hello'
@@ -169,6 +174,8 @@ def B():
 
 
 def test_nonlocal_skips_class():
+    if sys.version_info < (3, 0):
+        pytest.skip('Nonlocal not supported in Python 2')
 
     source = '''
 def A():

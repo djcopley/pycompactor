@@ -60,7 +60,7 @@ class Namespace(object):
 class ModuleNamespace(Namespace):
     def __init__(self, node):
         assert isinstance(node, ast.Module)
-        super().__init__(node, name='')
+        super(ModuleNamespace, self).__init__(node, name='')
 
     def __repr__(self):
         return 'ModuleNamespace(node=Module)'

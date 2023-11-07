@@ -282,6 +282,8 @@ class C[T](Base, keyword='hello'):
     assert_namespace_tree(module_namespace, expected_namespaces)
 
 def test_global_nonlocal():
+    if sys.version_info < (3, 0):
+        pytest.skip('Nonlocal not supported in python<3')
 
     source = '''
 def A():
