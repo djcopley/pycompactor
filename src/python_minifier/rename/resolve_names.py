@@ -102,5 +102,14 @@ def resolve_names(node):
     elif is_ast_node(node, 'Exec'):
         get_global_namespace(node).tainted = True
 
+    elif is_ast_node(node, 'TypeVar') and node.name in node.namespace.nonlocal_names:
+        get_binding(node.name, node.namespace).add_reference(node)
+
+    elif is_ast_node(node, 'TypeVarTuple') and node.name in node.namespace.nonlocal_names:
+        get_binding(node.name, node.namespace).add_reference(node)
+
+    elif is_ast_node(node, 'ParamSpec') and node.name in node.namespace.nonlocal_names:
+        get_binding(node.name, node.namespace).add_reference(node)
+
     for child in ast.iter_child_nodes(node):
         resolve_names(child)
