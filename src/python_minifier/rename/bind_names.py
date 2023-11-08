@@ -92,12 +92,12 @@ class NameBinder(NodeVisitor):
 
     def visit_alias(self, node):
         if node.name == '*':
-            get_global_namespace(node).tainted = True
+            get_global_namespace(node.namespace).tainted = True
 
         root_module = node.name.split('.')[0]
 
         if root_module == 'timeit':
-            get_global_namespace(node).tainted = True
+            get_global_namespace(node.namespace).tainted = True
 
         if node.asname is not None:
             if node.asname not in node.namespace.nonlocal_names:
