@@ -5,14 +5,14 @@ from hypothesis import given, settings, Verbosity, note, HealthCheck
 
 from folding import FoldableExpression
 from patterns import Pattern
-from python_minifier import ModulePrinter
-from python_minifier.ast_compare import compare_ast
-from python_minifier.ast_printer import print_ast
-from python_minifier.expression_printer import ExpressionPrinter
+from pycompactor import ModulePrinter
+from pycompactor.ast_compare import compare_ast
+from pycompactor.ast_printer import print_ast
+from pycompactor.expression_printer import ExpressionPrinter
 from expressions import Expression
 from module import Module
-from python_minifier.rename.mapper import add_parent
-from python_minifier.transforms.constant_folding import FoldConstants
+from pycompactor.rename.mapper import add_parent
+from pycompactor.transforms.constant_folding import FoldConstants
 
 
 @given(node=Expression())

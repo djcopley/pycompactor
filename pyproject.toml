@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pycompactor"
+dynamic = ["version"]
+description = "Transform Python source code into it's most compact representation"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+authors = [
+    { name = "Daniel Copley", email = "djcopley@proton.me" },
+]
+keywords = [
+    "minifier",
+    "minify",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Software Development",
+]
+
+[project.scripts]
+pyminify = "pycompactor.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/djcopley/pycompactor"
+Repository = "https://github.com/djcopley/pycompactor.git"
+Issues = "https://github.com/djcopley/pycompactor/issues"
+
+[tool.hatch.version]
+source = "vcs"

@@ -5,7 +5,7 @@ import pytest
 import warnings
 warnings.filterwarnings("ignore")
 
-from python_minifier import minify, unparse
+from pycompactor import minify, unparse
 
 def gather_files():
     print('Interpreter version: ', sys.version_info)

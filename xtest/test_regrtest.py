@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from python_minifier import minify
+from pycompactor import minify
 
 try:
     import yaml

@@ -25,14 +25,14 @@ author = 'Daniel Flook'
 
 from pkg_resources import get_distribution, DistributionNotFound
 try:
-    release = get_distribution('python_minifier').version
+    release = get_distribution('pycompactor').version
     version = '.'.join(release.split('.')[:3])
 except DistributionNotFound:
     release = '0.0.0'
     version = '0.0.0'
 
 import os
-from python_minifier import minify
+from pycompactor import minify
 
 def create_example(option):
     options = {

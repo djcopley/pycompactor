@@ -4,7 +4,7 @@ This should pass typechecking
 
 import ast
 
-from python_minifier import minify, unparse, awslambda, RemoveAnnotationsOptions
+from pycompactor import minify, unparse, awslambda, RemoveAnnotationsOptions
 
 def test_typing() -> None:
     """ This should have good types """

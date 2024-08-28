@@ -2,7 +2,7 @@
 This should fail type checking
 """
 
-from python_minifier import minify
+from pycompactor import minify
 
 def test_typing() -> None:
 
